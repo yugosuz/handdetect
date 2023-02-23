@@ -7,17 +7,39 @@ import pyautogui
 
 
 def loadVideo(path):
+    """
+    動画を読み込む
+    Args:
+        path(str) : 動画へのパス
+    Returns:
+        cap : VideoCaptureクラス
+    """
     cap = cv2.VideoCapture(path)
     return cap
 
 
 def imgPreprocessing(frame):
+    """
+    画像を読み込み、二値化する
+    Args:
+        frame(numpy.ndarray) : 二値化する画像
+    Returns:
+        thresh(numpy.ndarray) : 二値化した画像
+    """
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     thresh = cv2.inRange(gray, 65, 170)
     return thresh
 
 
 def getMaximumBlob(mask):
+    """
+    画像から最大のブロブを抜き出し、それ以外の領域を黒塗りする
+    Args:
+        mask(numpy.ndarray) : 抽出したい画像
+    Returns:
+        maxSize(float) : 取得したブロブのサイズ
+        mask(numpy.ndarray) : 最大ブロブ以外を塗りつぶした画像
+    """
     nlabels, labelimg, contours, CoGs = cv2.connectedComponentsWithStats(mask)
 
     if nlabels > 0:
@@ -41,30 +63,41 @@ def getMaximumBlob(mask):
 
 
 def denoising(blob):
+    """
+    ノイズ除去
+    Args:
+        blob(numpy.ndarray) : ノイズを消したい画像
+    Returns:
+        closing(numpy.ndarray) : ノイズ除去（クロージング）を施した画像
+    """
     kernel = np.ones((5, 5), np.uint8)
     closing = cv2.morphologyEx(blob, cv2.MORPH_CLOSE, kernel)
     return closing
 
 
 def getContours(img):
+    """
+    画像から凸包を計算する
+    Args:
+        img(numpy.ndarray) : 凸包を計算したい画像
+    Returns:
+        contours(numpy.ndarray) : 凸包の輪郭の座標
+    """
     contours, hierarchy = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     return contours
 
 
-def preparePatternMatch():
-    img = cv2.imread("/Users/suzukiyuusatoru/Documents/GitHub/HandTrack/Research/datasets/binalizeddatasets/test/finger1/picture533.png", cv2.IMREAD_GRAYSCALE)
-    dst = img[180:225, 237:282]
-    # h = dst.shape[0]
-    # w = dst.shape[1]
-    # center = (int(w/2), int(h/2))
-    # trans = cv2.getRotationMatrix2D(center, 90 , 1.0)
-    # flipdst = cv2.warpAffine(dst, trans, (w, h))
-    # return dst, flipdst
-
-    return dst
-
-
 def getPatternMatch(dst, img):
+    """
+    パターンマッチを行う
+    Args:
+        dst(numpy.ndarray) : 探索する画像
+        img(numpy.ndarray) : テンプレート
+    Returns:
+        points(numpy.ndarray) : 類似度マップ
+        w(int) : 画像のwidth
+        h(int) : 画像のheight
+    """
     points = cv2.matchTemplate(dst, img, cv2.TM_CCOEFF_NORMED)
 
     w = dst.shape[1]
@@ -74,15 +107,21 @@ def getPatternMatch(dst, img):
 
 
 def onChangeFinger(num):
+    """
+    認識した指の本数に対してその番号に対応するキーを押す
+    Args:
+        num(int) : 指の本数
+    """
     pyautogui.typewrite(num)
 
 
 if __name__ == '__main__':
-    cap = loadVideo('datasets/movies/output5.mov')
+    cap = loadVideo('../movies/output5.mov')
     rects = []
     ckernel = np.ones((3, 3), np.uint8)
     okernel = np.ones((5, 5), np.uint8)
     font = cv2.FONT_HERSHEY_SIMPLEX
+    finger = cv2.imread('', cv2.IMREAD_GRAYSCALE)
     while(cap.isOpened):
         ret, frame = cap.read()
 
@@ -90,7 +129,6 @@ if __name__ == '__main__':
         maxSize, maxBlob = getMaximumBlob(thresh)
         closing = denoising(maxBlob)
 
-        finger = preparePatternMatch()
         dst, w, h = getPatternMatch(finger, closing)
         area = cv2.inRange(dst, 0.73, 1.0)
 
